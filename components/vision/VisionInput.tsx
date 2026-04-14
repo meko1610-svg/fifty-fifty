@@ -2,12 +2,14 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Textarea } from '@/components/ui/textarea'
 import { Logo } from '@/components/ui/logo'
 import { OrchestrationDisplay } from './OrchestrationDisplay'
 import { GuidingQuestion } from '@/components/questions/GuidingQuestion'
 import { BriefModal } from '@/components/project/BriefModal'
+import { createClient } from '@/lib/supabase/client'
 import {
   OrchestrationPhase,
   OrchestrationState,
@@ -19,6 +21,12 @@ type UIState = 'idle' | 'orchestrating' | 'question' | 'brief'
 
 export function VisionInput() {
   const router = useRouter()
+  const supabase = createClient()
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
   const [vision, setVision] = useState('')
   const [uiState, setUiState] = useState<UIState>('idle')
   const [generatedHtml, setGeneratedHtml] = useState<string | null>(null)
@@ -185,6 +193,22 @@ export function VisionInput() {
       {/* Logo — canto superior esquerdo */}
       <div className="fixed top-6 left-6">
         <Logo size={72} />
+      </div>
+
+      {/* Ações — canto superior direito */}
+      <div className="fixed top-6 right-6 flex items-center gap-3">
+        <Link
+          href="/projects"
+          className="text-xs text-neutral-600 hover:text-neutral-400 transition-colors"
+        >
+          Projetos
+        </Link>
+        <button
+          onClick={handleLogout}
+          className="text-xs text-neutral-700 hover:text-neutral-500 transition-colors"
+        >
+          Sair
+        </button>
       </div>
 
       {/* Modal do brief */}

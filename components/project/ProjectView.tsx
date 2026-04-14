@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Logo } from '@/components/ui/logo'
+import { createClient } from '@/lib/supabase/client'
 
 interface Project {
   id: string
@@ -26,6 +28,13 @@ interface Props {
 
 export function ProjectView({ project }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const router = useRouter()
+  const supabase = createClient()
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   const allAgents = project.team
     ? Object.values(project.team).flat()
@@ -57,6 +66,12 @@ export function ProjectView({ project }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/projects"
+            className="text-xs px-3 py-1.5 rounded-lg border border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:border-neutral-600 transition-colors"
+          >
+            Projetos
+          </Link>
           <button
             onClick={() => setSidebarOpen(v => !v)}
             className="text-xs px-3 py-1.5 rounded-lg border border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:border-neutral-600 transition-colors"
@@ -68,6 +83,12 @@ export function ProjectView({ project }: Props) {
             className="text-xs px-3 py-1.5 rounded-lg bg-neutral-100 hover:bg-white text-neutral-900 font-medium transition-colors"
           >
             ↓ Download HTML
+          </button>
+          <button
+            onClick={handleLogout}
+            className="text-xs px-3 py-1.5 rounded-lg border border-neutral-800 text-neutral-600 hover:text-neutral-400 hover:border-neutral-600 transition-colors"
+          >
+            Sair
           </button>
         </div>
       </header>

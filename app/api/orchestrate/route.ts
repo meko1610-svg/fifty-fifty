@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { orchestrate } from '@/lib/orchestrator'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,6 +11,10 @@ export async function POST(req: NextRequest) {
     if (!content || typeof content !== 'string') {
       return NextResponse.json({ error: 'content é obrigatório' }, { status: 400 })
     }
+
+    // Pega o usuário autenticado (se houver)
+    const supabaseAuth = await createClient()
+    const { data: { user } } = await supabaseAuth.auth.getUser()
 
     const result = await orchestrate({
       vision: content.trim(),
@@ -34,6 +39,7 @@ export async function POST(req: NextRequest) {
         vision: content.trim(),
         status: 'delivered',
         delivered_at: new Date().toISOString(),
+        user_id: user?.id ?? null,
         brief: {
           title: brand.projectName,
           description: copy.valueProposition,
