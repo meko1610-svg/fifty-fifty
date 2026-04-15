@@ -30,11 +30,18 @@ export async function middleware(request: NextRequest) {
 
   // Rotas públicas — não redirecionar
   const isPublic =
+    pathname === '/landing' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth/callback') ||
     pathname.startsWith('/api/')
 
   if (!user && !isPublic) {
+    // Rota raiz: manda para landing page
+    if (pathname === '/') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/landing'
+      return NextResponse.redirect(url)
+    }
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('next', pathname)
