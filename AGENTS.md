@@ -451,7 +451,7 @@ active        boolean DEFAULT true
 | Item | Status | Notes |
 |------|--------|-------|
 | Score Agent retry UI | Planned | Needs new SSE event type `score` + UI state "Refinando..." |
-| Two-stage retrieval in Team Selector | Planned | Stage 1: keyword filter; Stage 2: Claude ranking |
+| Two-stage retrieval in Team Selector | Done | Stage 1: keyword filter (max 8/fase); Stage 2: Claude ranking sobre lista reduzida |
 | Score Agent retry UI | Planned | Needs new SSE event type `score` + UI state "Refinando..." |
 | CORS tightening | Done | `_shared/cors.ts` com allowlist; produção requer secret `ALLOWED_ORIGIN` |
 | Security Agent JSON parse on large HTML | Done | Two-pass: fixes determinísticos + Claude retorna só issues array (max_tokens: 512) |
