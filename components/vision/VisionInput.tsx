@@ -34,7 +34,6 @@ const AGENT_DONE: Record<string, string> = {
   brand:        'Identidade definida',
   'copy-design': 'Copy e design prontos',
   engineering:  'Código construído',
-  score:        'Qualidade verificada',
   security:     'Segurança aprovada',
 }
 
