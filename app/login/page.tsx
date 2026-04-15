@@ -27,6 +27,7 @@ function LoginForm() {
       },
     })
 
+    if (error) console.error('[login] signInWithOtp error:', error.message)
     setStatus(error ? 'error' : 'sent')
   }
 
@@ -63,6 +64,12 @@ function LoginForm() {
       {hasError && (
         <p className="text-xs text-red-400 bg-red-950/30 border border-red-900/50 rounded-xl px-4 py-3">
           Link inválido ou expirado. Tente novamente.
+        </p>
+      )}
+
+      {status === 'error' && (
+        <p className="text-xs text-red-400 bg-red-950/30 border border-red-900/50 rounded-xl px-4 py-3">
+          Não foi possível enviar o link. Verifique o e-mail e tente novamente.
         </p>
       )}
 
