@@ -60,6 +60,89 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* 50/50 */}
+      <section className="border-b border-[#222] py-32 px-6">
+        <div className="max-w-6xl mx-auto">
+
+          <div className="mb-16 text-center">
+            <p className="text-xs text-[#444] font-mono uppercase tracking-widest mb-3">O conceito</p>
+            <h2
+              className="font-light text-[#F5F5F5] tracking-tight"
+              style={{ fontSize: 'clamp(2rem, 4vw, 3.5rem)', letterSpacing: '-0.02em' }}
+            >
+              Fifty-Fifty.
+            </h2>
+            <p className="mt-4 text-[#555] text-base max-w-md mx-auto leading-relaxed">
+              O nome não é à toa. A parceria é real.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-[#222]">
+
+            {/* Lado do usuário */}
+            <div className="bg-[#0A0A0A] p-12 flex flex-col gap-8">
+              <div className="flex items-baseline gap-4">
+                <span
+                  className="font-mono font-light text-[#222]"
+                  style={{ fontSize: 'clamp(4rem, 8vw, 7rem)', lineHeight: 1 }}
+                >
+                  50
+                </span>
+                <span className="text-xs text-[#444] font-mono uppercase tracking-widest">% você</span>
+              </div>
+              <div className="flex flex-col gap-5">
+                <p className="text-sm text-[#888] leading-relaxed">
+                  Você traz o que nenhuma IA tem: <span className="text-[#F5F5F5]">a ideia</span>.
+                  O contexto do seu mercado, o problema que você quer resolver, quem é o seu cliente.
+                </p>
+                <ul className="flex flex-col gap-3">
+                  {['A visão do produto', 'O problema que você resolve', 'Para quem é', 'O que você quer dizer ao mundo'].map((item) => (
+                    <li key={item} className="flex items-center gap-3 text-sm text-[#555]">
+                      <span className="w-px h-3 bg-[#333] flex-shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Lado da plataforma */}
+            <div className="bg-[#0D0D0D] p-12 flex flex-col gap-8">
+              <div className="flex items-baseline gap-4">
+                <span
+                  className="font-mono font-light text-[#F5F5F5]"
+                  style={{ fontSize: 'clamp(4rem, 8vw, 7rem)', lineHeight: 1 }}
+                >
+                  50
+                </span>
+                <span className="text-xs text-[#666] font-mono uppercase tracking-widest">% nós</span>
+              </div>
+              <div className="flex flex-col gap-5">
+                <p className="text-sm text-[#888] leading-relaxed">
+                  Nós trazemos o que levaria semanas:
+                  <span className="text-[#F5F5F5]"> a execução completa</span>.
+                  Um time de agentes especializados que trabalham juntos, em paralelo, pela sua ideia.
+                </p>
+                <ul className="flex flex-col gap-3">
+                  {['Identidade de marca única', 'Copy de conversão', 'Design system sob medida', 'Código HTML funcional', 'Revisão de segurança'].map((item) => (
+                    <li key={item} className="flex items-center gap-3 text-sm text-[#666]">
+                      <span className="w-px h-3 bg-[#F5F5F5]/20 flex-shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+          </div>
+
+          <p className="mt-8 text-center text-xs text-[#333] font-mono">
+            Você + nós = site pronto em 60 segundos.
+          </p>
+
+        </div>
+      </section>
+
       {/* COMO FUNCIONA */}
       <section className="bg-[#111] border-b border-[#222] py-32 px-6">
         <div className="max-w-6xl mx-auto">
