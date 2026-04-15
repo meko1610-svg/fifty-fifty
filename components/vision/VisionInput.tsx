@@ -60,6 +60,7 @@ export function VisionInput() {
   const [agentSteps, setAgentSteps] = useState<AgentStep[]>([])
   const [currentStep, setCurrentStep] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const isRetrying = useRef(false)
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -76,6 +77,7 @@ export function VisionInput() {
   async function handleSubmit() {
     const trimmed = vision.trim()
     if (!trimmed || uiState !== 'idle') return
+    isRetrying.current = false
     setUiState('orchestrating')
     runOrchestrationAnimation(trimmed)
   }
@@ -172,21 +174,31 @@ export function VisionInput() {
         break
 
       case 'engineering':
-        setAgentSteps((prev) => [...prev, { label: AGENT_DONE['engineering'], done: true }])
-        setCurrentStep('score')
+        if (isRetrying.current) {
+          // Re-execução no retry — não duplica o step "Código construído"
+          setCurrentStep('score')
+        } else {
+          setAgentSteps((prev) => [...prev, { label: AGENT_DONE['engineering'], done: true }])
+          setCurrentStep('score')
+        }
         break
 
       case 'score': {
-        const { approved, retry } = event as { approved: boolean; retry: boolean }
+        const { score, approved, retry } = event as { score: number; approved: boolean; retry: boolean }
         if (approved) {
-          setAgentSteps((prev) => [...prev, { label: AGENT_DONE['score'], done: true }])
+          isRetrying.current = false
+          setAgentSteps((prev) => [
+            ...prev,
+            { label: `Qualidade verificada · ${score}/100`, done: true },
+          ])
           setCurrentStep('security')
         } else if (retry) {
-          // Score baixo mas ainda há tentativas: regenera
-          setAgentSteps((prev) => [...prev, { label: 'Refinando resultado...', done: true }])
+          // Score abaixo do threshold — sinaliza retry, sem adicionar step duplicado
+          isRetrying.current = true
           setCurrentStep('engineering-retry')
         } else {
-          // Esgotou retries, segue assim mesmo
+          // Esgotou retries — entrega assim mesmo
+          isRetrying.current = false
           setCurrentStep('security')
         }
         break
@@ -221,6 +233,7 @@ export function VisionInput() {
   }
 
   async function handleAnswer(answer: string) {
+    isRetrying.current = false
     setUiState('orchestrating')
     setAgentSteps([])
     setCurrentStep('team')
