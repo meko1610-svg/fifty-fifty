@@ -1,5 +1,5 @@
-import { anthropic } from '@/lib/anthropic'
-import { BrandOutput } from '@/lib/types'
+import { anthropic } from '../anthropic.ts'
+import { BrandOutput } from '../types.ts'
 
 export async function runBrandAgent(
   vision: string,

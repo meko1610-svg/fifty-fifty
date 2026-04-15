@@ -1,5 +1,5 @@
-import { anthropic } from '@/lib/anthropic'
-import { BrandOutput, CopyOutput } from '@/lib/types'
+import { anthropic } from '../anthropic.ts'
+import { BrandOutput, CopyOutput } from '../types.ts'
 
 export async function runCopyAgent(brand: BrandOutput, teamContext?: string): Promise<CopyOutput> {
   const message = await anthropic.messages.create({

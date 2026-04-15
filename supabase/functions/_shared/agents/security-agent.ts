@@ -1,4 +1,4 @@
-import { anthropic } from '@/lib/anthropic'
+import { anthropic } from '../anthropic.ts'
 
 export interface SecurityOutput {
   approved: boolean
@@ -45,7 +45,6 @@ Retorne SOMENTE um JSON válido:
   const text = content.text.trim()
   const jsonMatch = text.match(/\{[\s\S]*\}/)
   if (!jsonMatch) {
-    // Fallback: retorna o HTML original aprovado se a resposta não for JSON
     return { approved: true, issues: [], sanitizedHtml: html }
   }
 

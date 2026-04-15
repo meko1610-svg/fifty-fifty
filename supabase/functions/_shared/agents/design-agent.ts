@@ -1,5 +1,5 @@
-import { anthropic } from '@/lib/anthropic'
-import { BrandOutput, DesignOutput } from '@/lib/types'
+import { anthropic } from '../anthropic.ts'
+import { BrandOutput, DesignOutput } from '../types.ts'
 
 export async function runDesignAgent(brand: BrandOutput, teamContext?: string): Promise<DesignOutput> {
   const message = await anthropic.messages.create({

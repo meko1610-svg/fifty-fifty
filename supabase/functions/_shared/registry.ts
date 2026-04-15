@@ -1,8 +1,8 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from 'npm:@supabase/supabase-js'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 
 export interface AgentRecord {
@@ -19,11 +19,10 @@ export interface SelectedAgent {
   name: string
   emoji: string
   squad: string
-  role: string          // papel que vai desempenhar neste projeto
-  expertise: string     // trecho do content relevante para o contexto
+  role: string
+  expertise: string
 }
 
-// Busca agentes de squads específicos
 export async function fetchAgentsBySquads(squads: string[]): Promise<AgentRecord[]> {
   const { data, error } = await supabase
     .from('agents')
@@ -35,7 +34,6 @@ export async function fetchAgentsBySquads(squads: string[]): Promise<AgentRecord
   return (data ?? []) as AgentRecord[]
 }
 
-// Busca agentes específicos por ID
 export async function fetchAgentsByIds(ids: string[]): Promise<AgentRecord[]> {
   const { data, error } = await supabase
     .from('agents')
@@ -47,9 +45,7 @@ export async function fetchAgentsByIds(ids: string[]): Promise<AgentRecord[]> {
   return (data ?? []) as AgentRecord[]
 }
 
-// Extrai a seção mais relevante do content para usar como contexto
 export function extractExpertise(content: string, maxChars = 800): string {
-  // Pega a seção de missão / identidade / foco do agente
   const sections = [
     /## (?:Your )?(?:Core )?Mission[\s\S]*?(?=\n##|$)/i,
     /## (?:Your )?Identity[\s\S]*?(?=\n##|$)/i,
@@ -64,6 +60,5 @@ export function extractExpertise(content: string, maxChars = 800): string {
     }
   }
 
-  // Fallback: primeiros 800 chars do content
   return content.slice(0, maxChars).trim()
 }

@@ -1,5 +1,5 @@
-import { anthropic } from '@/lib/anthropic'
-import { fetchAgentsByIds, fetchAgentsBySquads, extractExpertise, SelectedAgent } from './registry'
+import { anthropic } from './anthropic.ts'
+import { fetchAgentsBySquads, extractExpertise, SelectedAgent } from './registry.ts'
 
 export interface TeamSelection {
   brand: SelectedAgent[]
@@ -21,7 +21,6 @@ interface TeamPicks {
   engineering: AgentPick[]
 }
 
-// Mapa de squads disponíveis por fase
 const SQUAD_MAP = {
   brand: ['brand', 'brand-squad', 'brand-identity', 'movement', 'advisory-board'],
   copy: ['copy', 'copy-squad', 'hormozi', 'storytelling'],
@@ -33,7 +32,6 @@ export async function selectTeam(
   vision: string,
   clarification?: string
 ): Promise<TeamSelection> {
-  // Busca todos os candidatos por fase em paralelo
   const [brandCandidates, copyCandidates, designCandidates, engCandidates] =
     await Promise.all([
       fetchAgentsBySquads(SQUAD_MAP.brand),
@@ -42,7 +40,6 @@ export async function selectTeam(
       fetchAgentsBySquads(SQUAD_MAP.engineering),
     ])
 
-  // Claude escolhe o time baseado na visão
   const prompt = `Você é o Orchestrator da plataforma Fifty-Fifty.
 Analise a visão do usuário e escolha 1-2 agentes por fase que melhor se encaixam.
 
@@ -84,14 +81,6 @@ Retorne SOMENTE JSON válido:
   if (!jsonMatch) throw new Error('Team selector: JSON não encontrado')
 
   const picks: TeamPicks = JSON.parse(jsonMatch[0])
-
-  // Busca os agentes selecionados e monta o time com expertise extraída
-  const allIds = [
-    ...picks.brand.map(p => p.id),
-    ...picks.copy.map(p => p.id),
-    ...picks.design.map(p => p.id),
-    ...picks.engineering.map(p => p.id),
-  ]
 
   const allCandidates = [...brandCandidates, ...copyCandidates, ...designCandidates, ...engCandidates]
 

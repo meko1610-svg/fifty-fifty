@@ -1,5 +1,5 @@
-import { anthropic } from '@/lib/anthropic'
-import { BrandOutput, CopyOutput, DesignOutput } from '@/lib/types'
+import { anthropic } from '../anthropic.ts'
+import { BrandOutput, CopyOutput, DesignOutput } from '../types.ts'
 
 const BORDER_RADIUS_MAP: Record<string, string> = {
   none: '0px',
@@ -82,8 +82,6 @@ Retorne SOMENTE o HTML completo começando com <!DOCTYPE html>`,
   if (content.type !== 'text') throw new Error('Engineering Agent: resposta inesperada')
 
   const text = content.text.trim()
-
-  // Extrai o HTML se vier com markdown
   const htmlMatch = text.match(/<!DOCTYPE html[\s\S]*<\/html>/i)
   return htmlMatch ? htmlMatch[0] : text
 }

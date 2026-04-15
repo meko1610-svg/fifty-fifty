@@ -1,19 +1,19 @@
-import { runBrandAgent } from './agents/brand-agent'
-import { runCopyAgent } from './agents/copy-agent'
-import { runDesignAgent } from './agents/design-agent'
-import { runEngineeringAgent } from './agents/engineering-agent'
-import { runSecurityAgent } from './agents/security-agent'
-import { selectTeam, formatTeamContext, TeamSelection } from './agents/team-selector'
-import { PipelineResult, GuidingQuestion } from './types'
-import { SelectedAgent } from './agents/registry'
+import { runBrandAgent } from './agents/brand-agent.ts'
+import { runCopyAgent } from './agents/copy-agent.ts'
+import { runDesignAgent } from './agents/design-agent.ts'
+import { runEngineeringAgent } from './agents/engineering-agent.ts'
+import { runSecurityAgent } from './agents/security-agent.ts'
+import { selectTeam, formatTeamContext, TeamSelection } from './team-selector.ts'
+import { PipelineResult, GuidingQuestion } from './types.ts'
+import { SelectedAgent } from './registry.ts'
 
-interface OrchestrateInput {
+export interface OrchestrateInput {
   vision: string
   clarification?: string
   questionId?: string
 }
 
-interface OrchestrateResult {
+export interface OrchestrateResult {
   needsClarification: boolean
   question?: GuidingQuestion
   result?: PipelineResult
