@@ -409,7 +409,7 @@ data: {"type":"clarification","question":{"id":"q-audience","text":"..."}}
 **Auth:** Reads `Authorization: Bearer <jwt>` header. If valid JWT, sets `user_id` on the project.
 Anonymous projects are allowed (`user_id: null`).
 
-**CORS:** Accepts all origins (`Access-Control-Allow-Origin: *`). Tighten before production.
+**CORS:** Allowlist via `getCorsHeaders(req)` (`_shared/cors.ts`). Produção requer secret `ALLOWED_ORIGIN` configurado via `supabase secrets set`.
 
 ---
 
@@ -453,7 +453,7 @@ active        boolean DEFAULT true
 | Score Agent retry UI | Planned | Needs new SSE event type `score` + UI state "Refinando..." |
 | Two-stage retrieval in Team Selector | Planned | Stage 1: keyword filter; Stage 2: Claude ranking |
 | Score Agent retry UI | Planned | Needs new SSE event type `score` + UI state "Refinando..." |
-| CORS tightening | Needed | Current `*` origin is dev-only |
+| CORS tightening | Done | `_shared/cors.ts` com allowlist; produção requer secret `ALLOWED_ORIGIN` |
 | Security Agent JSON parse on large HTML | Risk | `max_tokens: 8192` may truncate very large pages |
 | Engineering Agent regeneration on failure | Not implemented | Currently no retry on malformed HTML |
 | Agent content versioning | Not implemented | Agents in DB have no version — changes affect all past queries |
