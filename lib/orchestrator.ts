@@ -20,6 +20,15 @@ interface OrchestrateResult {
   team?: TeamSelection
 }
 
+export type ProgressEvent =
+  | { type: 'team'; data: TeamSelection }
+  | { type: 'brand' }
+  | { type: 'copy-design' }
+  | { type: 'engineering' }
+  | { type: 'security' }
+
+type OnProgress = (event: ProgressEvent) => void
+
 function detectsLacuna(vision: string): GuidingQuestion | null {
   const lower = vision.toLowerCase()
 
@@ -47,7 +56,10 @@ function detectsLacuna(vision: string): GuidingQuestion | null {
   return null
 }
 
-export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateResult> {
+export async function orchestrate(
+  input: OrchestrateInput,
+  onProgress?: OnProgress
+): Promise<OrchestrateResult> {
   const { vision, clarification, questionId } = input
 
   if (!clarification && !questionId) {
@@ -57,23 +69,24 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
     }
   }
 
-  // Seleciona o time primeiro
   const team = await selectTeam(vision, clarification)
+  onProgress?.({ type: 'team', data: team })
 
-  // Brand Agent com contexto do time selecionado
   const brand = await runBrandAgent(vision, clarification, formatTeamContext(team.brand))
+  onProgress?.({ type: 'brand' })
 
-  // Copy e Design em paralelo, com seus respectivos times
   const [copy, design] = await Promise.all([
     runCopyAgent(brand, formatTeamContext(team.copy)),
     runDesignAgent(brand, formatTeamContext(team.design)),
   ])
+  onProgress?.({ type: 'copy-design' })
 
-  // Engineering com contexto completo do time de engenharia
   const rawHtml = await runEngineeringAgent(brand, copy, design, formatTeamContext(team.engineering))
+  onProgress?.({ type: 'engineering' })
 
-  // Security Agent valida e sanitiza antes da entrega
   const security = await runSecurityAgent(rawHtml)
+  onProgress?.({ type: 'security' })
+
   const html = security.sanitizedHtml
 
   return {

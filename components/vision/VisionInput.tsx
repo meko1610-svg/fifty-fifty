@@ -11,34 +11,57 @@ import { GuidingQuestion } from '@/components/questions/GuidingQuestion'
 import { BriefModal } from '@/components/project/BriefModal'
 import { createClient } from '@/lib/supabase/client'
 import {
-  OrchestrationPhase,
   OrchestrationState,
   ORCHESTRATION_SEQUENCE,
   ORCHESTRATION_DELAYS,
+  ProjectBrief,
 } from '@/lib/types'
 
 type UIState = 'idle' | 'orchestrating' | 'question' | 'brief'
+
+// Mensagens exibidas enquanto cada agente trabalha
+const AGENT_EXECUTING: Record<string, string> = {
+  team:        'Definindo identidade...',
+  brand:       'Criando copy e design...',
+  'copy-design': 'Construindo o código...',
+  engineering: 'Revisando segurança...',
+  security:    'Finalizando...',
+}
+
+const AGENT_DONE: Record<string, string> = {
+  brand:        'Identidade definida',
+  'copy-design': 'Copy e design prontos',
+  engineering:  'Código construído',
+  security:     'Segurança aprovada',
+}
+
+interface AgentStep {
+  label: string
+  done: boolean
+}
 
 export function VisionInput() {
   const router = useRouter()
   const supabase = createClient()
 
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
   const [vision, setVision] = useState('')
   const [uiState, setUiState] = useState<UIState>('idle')
   const [generatedHtml, setGeneratedHtml] = useState<string | null>(null)
   const [projectId, setProjectId] = useState<string | null>(null)
   const [selectedTeam, setSelectedTeam] = useState<Record<string, { name: string; emoji: string; role: string }[]> | undefined>()
-  const [isApiPending, setIsApiPending] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [orchestration, setOrchestration] = useState<OrchestrationState>({
     phase: 'reading',
     completedPhases: [],
   })
+  const [agentSteps, setAgentSteps] = useState<AgentStep[]>([])
+  const [currentStep, setCurrentStep] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -50,23 +73,19 @@ export function VisionInput() {
   async function handleSubmit() {
     const trimmed = vision.trim()
     if (!trimmed || uiState !== 'idle') return
-
     setUiState('orchestrating')
     runOrchestrationAnimation(trimmed)
   }
 
   function runOrchestrationAnimation(submittedVision: string) {
-    // Anima cada fase em sequência
     ORCHESTRATION_SEQUENCE.forEach((phase, index) => {
       const delay = ORCHESTRATION_DELAYS[phase]
       const nextPhase = ORCHESTRATION_SEQUENCE[index + 1]
 
-      // Ativa a fase atual
       setTimeout(() => {
         setOrchestration((prev) => ({ ...prev, phase }))
       }, delay)
 
-      // Marca como completa quando a próxima fase começa
       if (nextPhase) {
         const nextDelay = ORCHESTRATION_DELAYS[nextPhase]
         setTimeout(() => {
@@ -78,7 +97,6 @@ export function VisionInput() {
       }
     })
 
-    // Após todas as fases, chama a API
     const lastDelay = ORCHESTRATION_DELAYS['team-formed'] + 800
     setTimeout(() => {
       setOrchestration((prev) => ({
@@ -86,40 +104,41 @@ export function VisionInput() {
         completedPhases: [...ORCHESTRATION_SEQUENCE],
         phase: 'team-formed',
       }))
-      callOrchestrate(submittedVision)
+      setCurrentStep('team')
+      streamOrchestrate(submittedVision)
     }, lastDelay)
   }
 
-  async function callOrchestrate(submittedVision: string) {
-    setIsApiPending(true)
+  async function streamOrchestrate(submittedVision: string, body?: object) {
     try {
       const res = await fetch('/api/orchestrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: submittedVision }),
+        body: JSON.stringify({ content: submittedVision, ...body }),
       })
-      const data = await res.json()
 
-      if (data.needsClarification && data.question) {
-        setOrchestration((prev) => ({
-          ...prev,
-          phase: 'needs-clarification',
-          question: data.question,
-        }))
-        setUiState('question')
-      } else if (data.brief) {
-        setOrchestration((prev) => ({
-          ...prev,
-          phase: 'team-formed',
-          brief: data.brief,
-        }))
-        if (data.html) setGeneratedHtml(data.html)
-        if (data.team) setSelectedTeam(data.team)
-        if (data.projectId) setProjectId(data.projectId)
-        setUiState('brief')
-        setShowModal(true)
+      if (!res.ok || !res.body) throw new Error('stream failed')
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() ?? ''
+
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue
+          const event = JSON.parse(part.slice(6))
+          handleStreamEvent(event)
+        }
       }
     } catch {
+      // Fallback: pergunta de condução
       setOrchestration((prev) => ({
         ...prev,
         phase: 'needs-clarification',
@@ -128,14 +147,64 @@ export function VisionInput() {
           text: 'Para quem é esse projeto — uso pessoal ou outras pessoas vão acessar também?',
         },
       }))
+      setCurrentStep(null)
       setUiState('question')
-    } finally {
-      setIsApiPending(false)
+    }
+  }
+
+  function handleStreamEvent(event: Record<string, unknown>) {
+    switch (event.type) {
+      case 'team':
+        setCurrentStep('brand')
+        break
+
+      case 'brand':
+        setAgentSteps((prev) => [...prev, { label: AGENT_DONE['brand'], done: true }])
+        setCurrentStep('copy-design')
+        break
+
+      case 'copy-design':
+        setAgentSteps((prev) => [...prev, { label: AGENT_DONE['copy-design'], done: true }])
+        setCurrentStep('engineering')
+        break
+
+      case 'engineering':
+        setAgentSteps((prev) => [...prev, { label: AGENT_DONE['engineering'], done: true }])
+        setCurrentStep('security')
+        break
+
+      case 'security':
+        setAgentSteps((prev) => [...prev, { label: AGENT_DONE['security'], done: true }])
+        setCurrentStep(null)
+        break
+
+      case 'clarification':
+        setOrchestration((prev) => ({
+          ...prev,
+          phase: 'needs-clarification',
+          question: event.question as { id: string; text: string },
+        }))
+        setCurrentStep(null)
+        setUiState('question')
+        break
+
+      case 'done': {
+        const brief = event.brief as ProjectBrief
+        setOrchestration((prev) => ({ ...prev, brief, phase: 'delivered' }))
+        if (event.html) setGeneratedHtml(event.html as string)
+        if (event.team) setSelectedTeam(event.team as Record<string, { name: string; emoji: string; role: string }[]>)
+        if (event.projectId) setProjectId(event.projectId as string)
+        setUiState('brief')
+        setShowModal(true)
+        break
+      }
     }
   }
 
   async function handleAnswer(answer: string) {
     setUiState('orchestrating')
+    setAgentSteps([])
+    setCurrentStep('team')
     setOrchestration((prev) => ({
       ...prev,
       phase: 'team-formed',
@@ -143,37 +212,10 @@ export function VisionInput() {
       completedPhases: [...ORCHESTRATION_SEQUENCE],
     }))
 
-    // Chama novamente com a resposta
-    try {
-      const res = await fetch('/api/orchestrate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: vision,
-          clarification: answer,
-          questionId: orchestration.question?.id,
-        }),
-      })
-      const data = await res.json()
-
-      if (data.brief) {
-        setOrchestration((prev) => ({ ...prev, brief: data.brief }))
-        setUiState('brief')
-      }
-    } catch {
-      setOrchestration((prev) => ({
-        ...prev,
-        brief: {
-          title: vision.slice(0, 60),
-          description: 'Projeto gerado com base na sua visão.',
-          personality: 'claro, direto, com propósito',
-          visualDNA: ['minimalista', 'funcional', 'confiável'],
-          audience: answer,
-          coreProblem: vision,
-        },
-      }))
-      setUiState('brief')
-    }
+    await streamOrchestrate(vision, {
+      clarification: answer,
+      questionId: orchestration.question?.id,
+    })
   }
 
   function handleConfirm() {
@@ -181,37 +223,29 @@ export function VisionInput() {
     if (projectId) {
       router.push(`/project/${projectId}`)
     } else if (generatedHtml) {
-      // Fallback: blob se não salvou no DB
       const blob = new Blob([generatedHtml], { type: 'text/html' })
       const url = URL.createObjectURL(blob)
       window.open(url, '_blank')
     }
   }
 
+  const animationDone = orchestration.completedPhases.length === ORCHESTRATION_SEQUENCE.length
+
   return (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-6">
-      {/* Logo — canto superior esquerdo */}
       <div className="fixed top-6 left-6">
         <Logo size={72} />
       </div>
 
-      {/* Ações — canto superior direito */}
       <div className="fixed top-6 right-6 flex items-center gap-3">
-        <Link
-          href="/projects"
-          className="text-xs text-neutral-600 hover:text-neutral-400 transition-colors"
-        >
+        <Link href="/projects" className="text-xs text-neutral-600 hover:text-neutral-400 transition-colors">
           Projetos
         </Link>
-        <button
-          onClick={handleLogout}
-          className="text-xs text-neutral-700 hover:text-neutral-500 transition-colors"
-        >
+        <button onClick={handleLogout} className="text-xs text-neutral-700 hover:text-neutral-500 transition-colors">
           Sair
         </button>
       </div>
 
-      {/* Modal do brief */}
       {showModal && orchestration.brief && (
         <BriefModal
           brief={orchestration.brief}
@@ -224,7 +258,7 @@ export function VisionInput() {
       <div className="w-full max-w-xl">
         <AnimatePresence mode="wait">
 
-          {/* IDLE — campo de entrada */}
+          {/* IDLE */}
           {uiState === 'idle' && (
             <motion.div
               key="idle"
@@ -248,8 +282,6 @@ export function VisionInput() {
                   className="resize-none bg-neutral-900 border-neutral-800 text-neutral-100 placeholder:text-neutral-700 rounded-2xl text-base leading-relaxed min-h-[120px] pr-12 focus-visible:ring-0 focus-visible:border-neutral-600 transition-colors"
                   autoFocus
                 />
-
-                {/* Botão enviar */}
                 <button
                   onClick={handleSubmit}
                   disabled={!vision.trim()}
@@ -261,7 +293,6 @@ export function VisionInput() {
                 </button>
               </div>
 
-              {/* Ações secundárias */}
               <div className="flex gap-3">
                 <button className="text-neutral-600 hover:text-neutral-400 transition-colors p-1" title="Anexar imagem">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -281,7 +312,7 @@ export function VisionInput() {
             </motion.div>
           )}
 
-          {/* ORCHESTRATING + QUESTION — visão + status */}
+          {/* ORCHESTRATING + QUESTION */}
           {(uiState === 'orchestrating' || uiState === 'question') && (
             <motion.div
               key="orchestrating"
@@ -290,55 +321,61 @@ export function VisionInput() {
               transition={{ duration: 0.4 }}
               className="flex flex-col gap-6"
             >
-              {/* Bolha da visão */}
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-neutral-900 border border-neutral-800 rounded-2xl px-5 py-4"
               >
-                <p className="text-neutral-300 text-sm leading-relaxed">
-                  {vision}
-                </p>
+                <p className="text-neutral-300 text-sm leading-relaxed">{vision}</p>
               </motion.div>
 
-              {/* Orquestração */}
               <OrchestrationDisplay
                 currentPhase={orchestration.phase}
                 completedPhases={orchestration.completedPhases}
               />
 
-              {/* Aguardando API após animação completar */}
-              {isApiPending && orchestration.completedPhases.length === 6 && (
+              {/* Progresso real dos agentes — aparece após a animação */}
+              {animationDone && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="flex items-center gap-3 pl-7"
+                  className="flex flex-col gap-2.5 pl-7"
                 >
-                  <motion.span
-                    className="flex gap-1"
-                    animate={{}}
-                  >
-                    {[0, 1, 2].map((i) => (
-                      <motion.span
+                  <AnimatePresence>
+                    {agentSteps.map((step, i) => (
+                      <motion.div
                         key={i}
-                        className="block w-1 h-1 rounded-full bg-neutral-500"
-                        animate={{ opacity: [0.3, 1, 0.3] }}
-                        transition={{
-                          duration: 1.2,
-                          repeat: Infinity,
-                          delay: i * 0.2,
-                          ease: 'easeInOut',
-                        }}
-                      />
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="flex items-center gap-2.5"
+                      >
+                        <span className="text-neutral-400 text-xs">✓</span>
+                        <span className="text-xs text-neutral-500">{step.label}</span>
+                      </motion.div>
                     ))}
-                  </motion.span>
-                  <span className="text-xs text-neutral-600">
-                    O time está trabalhando...
-                  </span>
+                  </AnimatePresence>
+
+                  {currentStep && (
+                    <motion.div
+                      key={currentStep}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-2.5"
+                    >
+                      <motion.span
+                        className="block w-1.5 h-1.5 rounded-full bg-neutral-500 flex-shrink-0"
+                        animate={{ opacity: [1, 0.3, 1] }}
+                        transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                      />
+                      <span className="text-xs text-neutral-400">
+                        {AGENT_EXECUTING[currentStep]}
+                      </span>
+                    </motion.div>
+                  )}
                 </motion.div>
               )}
 
-              {/* Pergunta de condução */}
               {uiState === 'question' && orchestration.question && (
                 <GuidingQuestion
                   question={orchestration.question}
@@ -348,7 +385,7 @@ export function VisionInput() {
             </motion.div>
           )}
 
-          {/* BRIEF — orquestração permanece visível com modal por cima */}
+          {/* BRIEF */}
           {uiState === 'brief' && (
             <motion.div
               key="brief-bg"
@@ -363,6 +400,14 @@ export function VisionInput() {
                 currentPhase="team-formed"
                 completedPhases={[...ORCHESTRATION_SEQUENCE]}
               />
+              <div className="flex flex-col gap-2.5 pl-7">
+                {agentSteps.map((step, i) => (
+                  <div key={i} className="flex items-center gap-2.5">
+                    <span className="text-neutral-400 text-xs">✓</span>
+                    <span className="text-xs text-neutral-500">{step.label}</span>
+                  </div>
+                ))}
+              </div>
             </motion.div>
           )}
 
