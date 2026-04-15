@@ -38,11 +38,32 @@ export interface DesignOutput {
   }
 }
 
+export interface ScoreSignals {
+  // Positive (0–20 each, total 100)
+  brandCoherence: number
+  copyPresence: number
+  designAdherence: number
+  completeness: number
+  responsiveness: number
+  // Negative (deducted from total)
+  isGeneric: number
+  hasBrokenStructure: number
+  missingCTA: number
+}
+
+export interface ScoreOutput {
+  score: number           // 0–100
+  approved: boolean       // score >= 70
+  signals: ScoreSignals
+  feedback: string        // one-sentence reason when score < 70
+}
+
 export interface PipelineResult {
   brand: BrandOutput
   copy: CopyOutput
   design: DesignOutput
   html: string
+  score?: ScoreOutput
 }
 
 export interface GuidingQuestion {

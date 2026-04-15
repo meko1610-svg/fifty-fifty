@@ -38,7 +38,7 @@ export default function LandingPage() {
           >
             Você descreveu.<br />
             O time construiu.<br />
-            <span className="text-[#888]">O site está pronto.</span>
+            <span className="text-[#888]">MVP Pronto.</span>
           </h1>
 
           <p className="text-[#888] text-lg leading-relaxed max-w-xl">

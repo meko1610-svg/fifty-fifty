@@ -18,7 +18,8 @@ export async function runEngineeringAgent(
   brand: BrandOutput,
   copy: CopyOutput,
   design: DesignOutput,
-  teamContext?: string
+  teamContext?: string,
+  refineFeedback?: string
 ): Promise<string> {
   const radius = BORDER_RADIUS_MAP[design.style.borderRadius] ?? '8px'
   const sectionPadding = SPACING_MAP[design.style.spacing] ?? '6rem'
@@ -31,7 +32,7 @@ export async function runEngineeringAgent(
         role: 'user',
         content: `Você é o Engineering Agent da plataforma Fifty-Fifty.
 Sua missão: gerar uma landing page HTML completa, standalone, que materializa o DNA da marca.
-${teamContext ? `\nSeu time de engenharia neste projeto:\n${teamContext}\n\nAplique os padrões e princípios desses especialistas no código gerado.\n` : ''}
+${teamContext ? `\nSeu time de engenharia neste projeto:\n${teamContext}\n\nAplique os padrões e princípios desses especialistas no código gerado.\n` : ''}${refineFeedback ? `\n⚠️ REFINAMENTO OBRIGATÓRIO — a versão anterior foi reprovada pelo Score Agent:\n"${refineFeedback}"\nCorriga esse problema específico antes de qualquer outra coisa.\n` : ''}
 
 REGRA ABSOLUTA: a página deve parecer feita sob medida para esta marca específica.
 Nunca use layout genérico. Cada decisão visual deve refletir o arquétipo: ${brand.archetype}

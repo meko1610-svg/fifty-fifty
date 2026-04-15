@@ -61,7 +61,13 @@ Deno.serve(async (req: Request) => {
       try {
         const result = await orchestrate(
           { vision: content.trim(), clarification: clarification?.trim(), questionId },
-          (event: ProgressEvent) => send({ type: event.type })
+          (event: ProgressEvent) => {
+            if (event.type === 'score') {
+              send({ type: 'score', ...event.data })
+            } else {
+              send({ type: event.type })
+            }
+          }
         )
 
         if (result.needsClarification) {
@@ -92,6 +98,7 @@ Deno.serve(async (req: Request) => {
             brand,
             copy,
             design,
+            score: result.result!.score ?? null,
           })
           .select('id')
           .single()

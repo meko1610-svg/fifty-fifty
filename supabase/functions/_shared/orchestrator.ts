@@ -2,10 +2,13 @@ import { runBrandAgent } from './agents/brand-agent.ts'
 import { runCopyAgent } from './agents/copy-agent.ts'
 import { runDesignAgent } from './agents/design-agent.ts'
 import { runEngineeringAgent } from './agents/engineering-agent.ts'
+import { runScoreAgent } from './agents/score-agent.ts'
 import { runSecurityAgent } from './agents/security-agent.ts'
 import { selectTeam, formatTeamContext, TeamSelection } from './team-selector.ts'
-import { PipelineResult, GuidingQuestion } from './types.ts'
+import { PipelineResult, GuidingQuestion, ScoreOutput } from './types.ts'
 import { SelectedAgent } from './registry.ts'
+
+const MAX_ENGINEERING_RETRIES = 2
 
 export interface OrchestrateInput {
   vision: string
@@ -25,6 +28,7 @@ export type ProgressEvent =
   | { type: 'brand' }
   | { type: 'copy-design' }
   | { type: 'engineering' }
+  | { type: 'score'; data: { score: number; approved: boolean; retry: boolean } }
   | { type: 'security' }
 
 type OnProgress = (event: ProgressEvent) => void
@@ -81,8 +85,36 @@ export async function orchestrate(
   ])
   onProgress?.({ type: 'copy-design' })
 
-  const rawHtml = await runEngineeringAgent(brand, copy, design, formatTeamContext(team.engineering))
+  // Engineering → Score loop (max MAX_ENGINEERING_RETRIES tentativas)
+  let rawHtml = await runEngineeringAgent(brand, copy, design, formatTeamContext(team.engineering))
   onProgress?.({ type: 'engineering' })
+
+  let scoreResult: ScoreOutput | undefined
+  let attempts = 0
+
+  while (attempts < MAX_ENGINEERING_RETRIES) {
+    scoreResult = await runScoreAgent(rawHtml, brand, copy, design)
+
+    if (scoreResult.approved) {
+      onProgress?.({ type: 'score', data: { score: scoreResult.score, approved: true, retry: false } })
+      break
+    }
+
+    attempts++
+    const isLastAttempt = attempts >= MAX_ENGINEERING_RETRIES
+
+    onProgress?.({ type: 'score', data: { score: scoreResult.score, approved: false, retry: !isLastAttempt } })
+
+    if (isLastAttempt) break
+
+    // Regenera com feedback do Score Agent
+    rawHtml = await runEngineeringAgent(
+      brand, copy, design,
+      formatTeamContext(team.engineering),
+      scoreResult.feedback
+    )
+    onProgress?.({ type: 'engineering' })
+  }
 
   const security = await runSecurityAgent(rawHtml)
   onProgress?.({ type: 'security' })
@@ -92,6 +124,6 @@ export async function orchestrate(
   return {
     needsClarification: false,
     team,
-    result: { brand, copy, design, html },
+    result: { brand, copy, design, html, score: scoreResult },
   }
 }

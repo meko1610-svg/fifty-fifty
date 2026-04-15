@@ -21,17 +21,20 @@ type UIState = 'idle' | 'orchestrating' | 'question' | 'brief'
 
 // Mensagens exibidas enquanto cada agente trabalha
 const AGENT_EXECUTING: Record<string, string> = {
-  team:        'Definindo identidade...',
-  brand:       'Criando copy e design...',
-  'copy-design': 'Construindo o código...',
-  engineering: 'Revisando segurança...',
-  security:    'Finalizando...',
+  team:           'Definindo identidade...',
+  brand:          'Criando copy e design...',
+  'copy-design':  'Construindo o código...',
+  engineering:    'Avaliando qualidade...',
+  'engineering-retry': 'Refinando resultado...',
+  score:          'Revisando segurança...',
+  security:       'Finalizando...',
 }
 
 const AGENT_DONE: Record<string, string> = {
   brand:        'Identidade definida',
   'copy-design': 'Copy e design prontos',
   engineering:  'Código construído',
+  score:        'Qualidade verificada',
   security:     'Segurança aprovada',
 }
 
@@ -170,8 +173,24 @@ export function VisionInput() {
 
       case 'engineering':
         setAgentSteps((prev) => [...prev, { label: AGENT_DONE['engineering'], done: true }])
-        setCurrentStep('security')
+        setCurrentStep('score')
         break
+
+      case 'score': {
+        const { approved, retry } = event as { approved: boolean; retry: boolean }
+        if (approved) {
+          setAgentSteps((prev) => [...prev, { label: AGENT_DONE['score'], done: true }])
+          setCurrentStep('security')
+        } else if (retry) {
+          // Score baixo mas ainda há tentativas: regenera
+          setAgentSteps((prev) => [...prev, { label: 'Refinando resultado...', done: true }])
+          setCurrentStep('engineering-retry')
+        } else {
+          // Esgotou retries, segue assim mesmo
+          setCurrentStep('security')
+        }
+        break
+      }
 
       case 'security':
         setAgentSteps((prev) => [...prev, { label: AGENT_DONE['security'], done: true }])
