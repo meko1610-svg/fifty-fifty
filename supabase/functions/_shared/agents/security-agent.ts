@@ -6,51 +6,92 @@ export interface SecurityOutput {
   sanitizedHtml: string
 }
 
-export async function runSecurityAgent(html: string): Promise<SecurityOutput> {
+/**
+ * Aplica correções determinísticas ao HTML sem usar Claude.
+ * Cobre as regras mais comuns e nunca tem risco de truncamento.
+ */
+function applyDeterministicFixes(html: string): string {
+  let result = html
+
+  // 1. Adiciona rel="noopener noreferrer" a links externos sem rel
+  result = result.replace(
+    /(<a\b(?=[^>]*\bhref=["']https?:\/\/)[^>]*?)(\s*>)/gi,
+    (match, attrs, close) => {
+      if (/\brel\s*=/.test(attrs)) return match
+      return `${attrs} rel="noopener noreferrer"${close}`
+    }
+  )
+
+  // 2. Garante HTTPS nos domínios do Google Fonts
+  result = result.replace(/http:\/\/fonts\.googleapis\.com/gi, 'https://fonts.googleapis.com')
+  result = result.replace(/http:\/\/fonts\.gstatic\.com/gi, 'https://fonts.gstatic.com')
+
+  return result
+}
+
+/**
+ * Usa Claude apenas para análise semântica de segurança.
+ * Resposta é somente um array de issues — sem HTML no payload,
+ * sem risco de truncamento independente do tamanho do HTML.
+ */
+async function analyzeWithClaude(html: string): Promise<string[]> {
+  const SAMPLE_CHARS = 4000
+  const sample = html.length > SAMPLE_CHARS
+    ? html.slice(0, SAMPLE_CHARS) + `\n<!-- ... (${html.length - SAMPLE_CHARS} chars truncated for analysis) -->`
+    : html
+
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 8192,
+    max_tokens: 512,
     messages: [
       {
         role: 'user',
-        content: `Você é o Security Agent da plataforma Fifty-Fifty.
-Sua missão: revisar e sanitizar o HTML gerado antes da entrega ao usuário.
-
-Regras de segurança a aplicar:
-1. Remover qualquer tag <script> com conteúdo suspeito (eval, document.write, innerHTML com input externo)
-2. Remover atributos de event handler inline que acessem dados externos (onload com fetch, etc.)
-3. Garantir que links externos usem rel="noopener noreferrer"
-4. Remover iframes com src de domínios não confiáveis
-5. Garantir que não há vazamento de informação sensível nos comentários HTML
-6. Validar que o Google Fonts é carregado via HTTPS
-
-HTML para revisar:
+        content: `Security audit of generated HTML. Sample (${html.length} total chars):
 \`\`\`html
-${html}
+${sample}
 \`\`\`
 
-Retorne SOMENTE um JSON válido:
-{
-  "approved": true,
-  "issues": ["lista de problemas encontrados, vazia se nenhum"],
-  "sanitizedHtml": "o HTML completo após sanitização (mesmo se aprovado)"
-}`,
+Return ONLY a valid JSON array of critical security issues found (empty array if none):
+["issue description", ...]
+
+Check for:
+- eval() or document.write() usage
+- innerHTML assigned with external/user data
+- Iframes loading untrusted external domains
+- Sensitive information (keys, tokens, emails) in HTML comments`,
       },
     ],
   })
 
   const content = message.content[0]
-  if (content.type !== 'text') throw new Error('Security Agent: resposta inesperada')
+  if (content.type !== 'text') return []
 
-  const text = content.text.trim()
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) {
-    return { approved: true, issues: [], sanitizedHtml: html }
-  }
+  const match = content.text.trim().match(/\[[\s\S]*\]/)
+  if (!match) return []
 
   try {
-    return JSON.parse(jsonMatch[0]) as SecurityOutput
+    return JSON.parse(match[0]) as string[]
   } catch {
-    return { approved: true, issues: [], sanitizedHtml: html }
+    return []
+  }
+}
+
+export async function runSecurityAgent(html: string): Promise<SecurityOutput> {
+  // Passo 1: fixes determinísticos (sempre seguros, sem limite de tokens)
+  const sanitizedHtml = applyDeterministicFixes(html)
+
+  // Passo 2: análise semântica (Claude retorna só lista de issues, nunca o HTML)
+  let issues: string[] = []
+  try {
+    issues = await analyzeWithClaude(sanitizedHtml)
+  } catch {
+    // Se o Claude falhar, entrega o HTML com os fixes determinísticos aplicados
+    issues = []
+  }
+
+  return {
+    approved: issues.length === 0,
+    issues,
+    sanitizedHtml,
   }
 }

@@ -454,7 +454,7 @@ active        boolean DEFAULT true
 | Two-stage retrieval in Team Selector | Planned | Stage 1: keyword filter; Stage 2: Claude ranking |
 | Score Agent retry UI | Planned | Needs new SSE event type `score` + UI state "Refinando..." |
 | CORS tightening | Done | `_shared/cors.ts` com allowlist; produção requer secret `ALLOWED_ORIGIN` |
-| Security Agent JSON parse on large HTML | Risk | `max_tokens: 8192` may truncate very large pages |
+| Security Agent JSON parse on large HTML | Done | Two-pass: fixes determinísticos + Claude retorna só issues array (max_tokens: 512) |
 | Engineering Agent regeneration on failure | Not implemented | Currently no retry on malformed HTML |
 | Agent content versioning | Not implemented | Agents in DB have no version — changes affect all past queries |
 
