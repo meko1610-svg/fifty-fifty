@@ -35,7 +35,7 @@ User Vision
 [Engineering Agent]  ──── generates standalone HTML
      │
      ▼
-[Score Agent]        ──── (PLANNED) scores HTML quality, rejects if below threshold
+[Score Agent]        ──── scores HTML quality, rejects if below threshold (retry loop)
      │
      ▼
 [Security Agent]     ──── sanitizes HTML before delivery
@@ -82,7 +82,7 @@ fifty-fifty/
 │   │   │       ├── design-agent.ts
 │   │   │       ├── engineering-agent.ts
 │   │   │       ├── security-agent.ts
-│   │   │       └── score-agent.ts     # PLANNED — does not exist yet
+│   │   │       └── score-agent.ts
 │   │   └── orchestrate/
 │   │       └── index.ts          # Edge Function entry point (HTTP + SSE)
 │   └── migrations/               # SQL migrations (RLS, schema)
@@ -313,8 +313,8 @@ SPACING_MAP       = { compact: '4rem', comfortable: '7rem', spacious: '10rem' }
 
 ---
 
-### Score Agent *(PLANNED — not implemented)*
-**Location:** `supabase/functions/_shared/agents/score-agent.ts` *(to be created)*
+### Score Agent
+**Location:** `supabase/functions/_shared/agents/score-agent.ts`
 **Model:** `claude-haiku-4-5-20251001`
 **Position in pipeline:** Between Engineering Agent and Security Agent
 **Receives:** `html: string`, `brand: BrandOutput`, `copy: CopyOutput`, `design: DesignOutput`
@@ -395,7 +395,8 @@ data: {"type":"team"}
 data: {"type":"brand"}
 data: {"type":"copy-design"}
 data: {"type":"engineering"}
-data: {"type":"security"}                          ← will become score + security when Score Agent ships
+data: {"type":"score","data":{"score":85,"approved":true,"retry":false}}
+data: {"type":"security"}
 data: {"type":"done","projectId":"...","brief":{...},"team":{...},"html":"..."}
 ```
 
@@ -449,7 +450,7 @@ active        boolean DEFAULT true
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Score Agent | Planned | Between Engineering and Security. Not yet implemented. |
+| Score Agent retry UI | Planned | Needs new SSE event type `score` + UI state "Refinando..." |
 | Two-stage retrieval in Team Selector | Planned | Stage 1: keyword filter; Stage 2: Claude ranking |
 | Score Agent retry UI | Planned | Needs new SSE event type `score` + UI state "Refinando..." |
 | CORS tightening | Needed | Current `*` origin is dev-only |
